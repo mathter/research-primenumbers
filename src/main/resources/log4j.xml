@@ -1,0 +1,26 @@
+<!DOCTYPE log4j:configuration SYSTEM "log4j.dtd">
+<log4j:configuration debug="true" xmlns:log4j='http://jakarta.apache.org/log4j/'>
+
+    <appender name="console" class="org.apache.log4j.ConsoleAppender">
+        <param name="Target" value="System.out"/>
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="%d{yyyy-MM-dd HH:mm:ss} %-5p %t:%r %c:%L - %m%n"/>
+            <param name="encoding" value="UTF-8"/>
+        </layout>
+    </appender>
+
+    <appender name="file" class="org.apache.log4j.FileAppender">
+        <param name="File" value="file.log"/>
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="%d{yyyy-MM-dd HH:mm:ss} %-5p %t:%r %c:%L - %m%n"/>
+            <param name="encoding" value="UTF-8"/>
+        </layout>
+    </appender>
+
+    <root>
+        <priority value="debug"></priority>
+        <appender-ref ref="console"/>
+        <!-- appender-ref ref="file"/ -->
+    </root>
+
+</log4j:configuration>
