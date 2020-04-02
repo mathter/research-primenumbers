@@ -3,54 +3,71 @@ package tech.generated.reserach.primefaces.generator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
+import java.sql.SQLException;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Properties;
 
 public class Generate {
     private static final Logger LOG = LoggerFactory.getLogger(Generate.class);
 
-    private static final File FILE = new File("primenumbers.bin");
+    private static final int N;
 
-    private static final int COUNT = 10 * 1000 * 1000;
+    private static final String CONNECTION_URL;
 
-    public static void main(String[] args) throws IOException {
-        final int size = 1000 * 1000;
-        final SimpleLoadedStore store = new SimpleLoadedStore(size);
+    private static final Properties CONNECTION_PROPS = new Properties();
 
-        if (FILE.exists()) {
-            store.load(FILE, COUNT);
-        }
+    static {
+        N = 10 * 1000 * 1000;
+        CONNECTION_URL = "jdbc:postgresql://localhost:5432/postgres";
+        CONNECTION_PROPS.put("user", "postgres");
+        CONNECTION_PROPS.put("password", "postgres");
+    }
 
-        final Thread t = new Thread(() -> {
-            LOG.info("Start " + Thread.currentThread().getName());
-            try {
-                store.get(size - 1);
-            } catch (InterruptedException e) {
-                try {
-                    store.save(FILE);
-                } catch (IOException ex) {
-                    LOG.error("", ex);
-                }
+    public static void main(String[] args) throws Exception {
+        try (JdbcStore store = new JdbcStore(N + 1, CONNECTION_URL, CONNECTION_PROPS)) {
+            store.load();
+            registerHook(store, Collections.singletonList(calc(store)));
+
+            while (true) {
+                Thread.sleep(10 * 1000);
+                store.save();
             }
-            LOG.info("End " + Thread.currentThread().getName());
-        });
+        }
+    }
 
-        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+    private static Thread calc(JdbcStore store) {
+        final Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
-                LOG.info("Stoping...");
-                t.interrupt();
                 try {
-                    t.join();
+                    LOG.info("N=" + N + " Value=" + store.get(N));
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    try {
+                        store.save();
+                    } catch (SQLException ex) {
+                        LOG.error("Can't save!", ex);
+                    }
+                    LOG.info("Interrupted");
                 }
             }
+        });
+
+        thread.start();
+
+        return thread;
+    }
+
+    private static void registerHook(final JdbcStore store, final Collection<Thread> threads) {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            LOG.info("Stoping by system signal...");
+            try {
+                threads.forEach(Thread::interrupt);
+                store.close();
+            } catch (Exception e) {
+                LOG.error("Can't close object!", e);
+            }
+            LOG.info("Stoped by system signal!");
         }));
-
-        t.setName("THREAD");
-        t.start();
-
-        Thread.currentThread().setDaemon(true);
     }
 }
